@@ -371,7 +371,7 @@ const COLS = ["Chưa làm hồ sơ","Đã gửi hồ sơ","Đã ký hợp đồn
 const COL_COLORS = ["#378ADD","#EF9F27","#7F77DD","#D85A30","#1D9E75"];
 const TYPE_BADGE = {"Thương hiệu":"b-brand","Nội thất":"b-interior","Logo":"b-logo","In ấn":"b-print","Khác":"b-other"};
 const TODAY = new Date().toISOString().slice(0,10);
-const API = "https://script.google.com/macros/s/AKfycbyx3ZutW2rEuIBkY8C5QxQj4drGGGtg0-TuO6Um4SJesk1n5LzvcolYs2BQ6H5gB6vw/exec";
+const API = "https://script.google.com/macros/s/AKfycbzEBA4RvKRRHzEe0Lisa_iuvq1KlhBrpJoXGkoJ6_EOmC3NAEUf6YBBbf2ngPs0T7QhTg/exec";
 
 // ============ Trạng thái UI ============
 let F = { q:"", group:"", owner:"", sort:"" };
@@ -531,7 +531,7 @@ function renderKPIs() {
   const doing = data.filter(d => d.col === 3).length;
   const done  = data.filter(d => d.col === 4).length;
   const overdue = data.filter(d => daysSince(d.last) > 7).length;
-  const waitVal = data.filter(d => d.col === 4).reduce((a,c) => a + c.val, 0);
+  const waitVal = data.filter(d => d.col === 4).reduce((a,c) => a + Math.max(0, c.val - (c.paid||0)), 0);
   const totalPaid = data.reduce((a,c) => a + (c.paid||0), 0);
   const totalDue = data.reduce((a,c) => a + Math.max(0, c.val - (c.paid||0)), 0);
   document.getElementById("kpis").innerHTML =
@@ -545,7 +545,7 @@ function renderKPIs() {
 
 // ============ Biểu đồ giá trị theo giai đoạn ============
 function renderChart() {
-  var totals = COLS.map(function(_,ci){ return data.filter(d=>d.col===ci).reduce((a,c)=>a+c.val,0); });
+  var totals = COLS.map(function(_,ci){ return data.filter(d=>d.col===ci).reduce((a,c)=>a+Math.max(0,c.val-(c.paid||0)),0); });
   var counts = COLS.map(function(_,ci){ return data.filter(d=>d.col===ci).length; });
   var max = Math.max.apply(null, totals.concat([1]));
   var html = '<div class="chart-title">Giá trị hợp đồng theo giai đoạn</div>';
@@ -578,7 +578,7 @@ function renderBoard() {
   board.innerHTML = "";
   COLS.forEach(function(col, ci) {
     var cards = visibleCards(ci);
-    var colTotal = cards.reduce(function(a,c){return a+c.val},0);
+    var colTotal = cards.reduce(function(a,c){return a + Math.max(0,c.val-(c.paid||0))},0);
     var isCol = !!collapsed[ci];
     var div = document.createElement("div");
     div.className = "col col-"+ci + (isCol?" collapsed":"");
@@ -1118,10 +1118,10 @@ async function fetchSheetData(){
   try{ localStorage.setItem(LS_SHEET_URL,url); }catch(e){}
   document.getElementById("sheet-overlay").classList.remove("open");
   try{
-    var proxyUrl=API+"?action=importSheet&sheetId="+encodeURIComponent(sheetId);
-    if(tabName){ proxyUrl+="&tab="+encodeURIComponent(tabName); }
-    else if(gidMatch){ proxyUrl+="&gid="+gidMatch[1]; }
-    var res=await fetch(proxyUrl);
+    var gvizUrl="https://docs.google.com/spreadsheets/d/"+sheetId+"/gviz/tq?tqx=out:json";
+    if(tabName){ gvizUrl+="&sheet="+encodeURIComponent(tabName); }
+    else if(gidMatch){ gvizUrl+="&gid="+gidMatch[1]; }
+    var res=await fetch(gvizUrl);
     if(!res.ok) throw new Error("Không kết nối được Google Sheet (mã lỗi "+res.status+"). Kiểm tra Sheet đã bật chia sẻ \"Bất kỳ ai có đường liên kết\" chưa.");
     var text=await res.text();
     if(text.indexOf("{")===-1) throw new Error("Sai tên tab hoặc Sheet chưa bật chia sẻ công khai xem được.");
